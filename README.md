@@ -65,8 +65,4 @@ with counts. There’s a little + button; he taps it to pop open an emoji picker
 (👍 ❤️ 😂 😮 😢 🔥 🎵). He picks one, and the reaction is added immediately. The
 counts update both in the dialog and in the list.
 
-<video src="UserJourney.mov" controls width="640">
-  Your browser does not support the video tag. Here is a
-  <a href="UserJourney.mov">link to the video</a> instead.
-
-</video>
+Watch the user journey video here: [https://youtu.be/pi9Cr42bKsc](https://youtu.be/pi9Cr42bKsc). It is also [here](UserJourney.mov) if the link doesn't work
