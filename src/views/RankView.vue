@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia';
 import { useAuthStore } from '@/stores/auth';
 import { rankingApi, type RankedSong } from '@/api';
 import { songRecommenderApi } from '@/api';
+import { postApi } from '@/api';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -15,16 +16,17 @@ import {
 } from '@/components/ui/alert-dialog'
 
 const auth = useAuthStore();
-const { userId } = storeToRefs(auth);
+const { userId, username } = storeToRefs(auth);
 
 const pastRecommendations = ref<string[]>([]);
-const rankedSongs = ref<Array<string>>([]);
+const rankedSongs = ref<string[]>([]);
 const unrankedPastSongs = ref<string[]>([]);
-const rankingsList = ref<RankedSong[]>([]);
 
 const openSongId = ref<string | null>(null);
 const activeSongId = ref<string | null>(null);
 const competitorIndex = ref(0);
+const direction = ref<"up" | "down" | null>(null);
+const candidates = computed(() => rankedSongs.value.filter((id) => id !== activeSongId.value));
 
 onMounted(async () => {
   if (!userId.value) return;
@@ -46,46 +48,85 @@ function onDialogOpenChange(song: string, isOpen: boolean) {
   if (isOpen) {
     activeSongId.value = song;
     competitorIndex.value = 0;
+    direction.value = null;
     openSongId.value = song;
   } else {
     openSongId.value = null;
     activeSongId.value = null;
+    direction.value = null;
+  }
+}
+
+async function finalizeComparison(preferredId: string, otherId?: string) {
+  if (!userId.value || !activeSongId.value) return;
+  const songA = activeSongId.value;
+  const songB = otherId ?? songA;
+  try {
+    await rankingApi.addComparison(userId.value, songA, songB, preferredId);
+    try {
+      const ranks = await rankingApi.getRankings(userId.value);
+      const list: RankedSong[] = Array.isArray((ranks as any)?.rankedSongs)
+        ? (ranks as any).rankedSongs
+        : (Array.isArray(ranks) ? (ranks as RankedSong[]) : []);
+      const entry = list.find((r) => r.songId === songA);
+      const normalized = entry ? (entry.score / 10).toFixed(1) : 'N/A';
+      const content = `${username.value ?? 'user'} ranked ${songA} ${normalized}`;
+      await postApi.create(userId.value, content, new Date().toISOString());
+    } catch (_) {}
+  } catch (err) {
+    console.error('Error finalizing comparison:', err);
+  } finally {
+    openSongId.value = null;
+    activeSongId.value = null;
+    direction.value = null;
+  }
+}
+
+function advanceOrFinalize(preferA: boolean) {
+  const len = candidates.value.length;
+  if (len === 0) {
+    // No competitors at all
+    finalizeComparison(activeSongId.value!);
+    return;
+  }
+  // Set direction on first choice
+  if (direction.value === null) direction.value = preferA ? 'up' : 'down';
+
+  if (direction.value === 'up') {
+    // Move to a better B (higher index)
+    if (preferA) {
+      competitorIndex.value += 1;
+      if (competitorIndex.value >= len) {
+        // out of candidates → finalize preferring A vs last
+        finalizeComparison(activeSongId.value!, candidates.value[len - 1] as string);
+      }
+    } else {
+      // User picked B → finalize with current competitor
+      finalizeComparison(candidates.value[competitorIndex.value] as string, activeSongId.value!);
+    }
+  } else {
+    // direction === 'down' → move to worse B (lower index)
+    if (!preferA) {
+      competitorIndex.value -= 1;
+      if (competitorIndex.value < 0) {
+        // out of candidates → finalize preferring current B (the first one we had)
+        finalizeComparison(candidates.value[0] as string, activeSongId.value!);
+      }
+    } else {
+      // User picked A → finalize with current competitor
+      finalizeComparison(activeSongId.value!, candidates.value[Math.max(0, competitorIndex.value)] as string);
+    }
   }
 }
 
 async function selectPreferred(preferA: boolean) {
   if (!userId.value || !activeSongId.value) return;
-  const competitor = rankedSongs.value[competitorIndex.value];
-
-  const songA = activeSongId.value;
-  const songB = competitor;
-  const preferred = preferA ? songA : songB ? songB : undefined;
-
-  try {
-    if (songB) {
-      await rankingApi.addComparison(userId.value, songA, preferred!, songB);
-    } else {
-      await rankingApi.addComparison(userId.value, songA, songA);
-    }
-  } catch (err) {
-    console.error('Error adding comparison:', err);
-    // ignore errors per requirements
+  // Ensure index is within bounds before using it in the UI
+  if (competitorIndex.value < 0) competitorIndex.value = 0;
+  if (competitorIndex.value >= candidates.value.length && candidates.value.length > 0) {
+    competitorIndex.value = candidates.value.length - 1;
   }
-
-  if (preferA) {
-    // One last comparison done choosing A; close dialog
-    openSongId.value = null;
-    activeSongId.value = null;
-    return;
-  }
-
-  // Move to next competitor
-  competitorIndex.value += 1;
-  if (competitorIndex.value >= rankedSongs.value.length) {
-    // No more competitors; close
-    openSongId.value = null;
-    activeSongId.value = null;
-  }
+  advanceOrFinalize(preferA);
 }
 </script>
 
@@ -113,9 +154,12 @@ async function selectPreferred(preferA: boolean) {
                 <button class="px-4 py-2 rounded bg-[#02474D] text-white hover:opacity-90" @click="selectPreferred(true)">
                   Choose This Song
                 </button>
-                <button v-if="competitorIndex < rankedSongs.length" class="px-4 py-2 rounded border hover:bg-accent" @click="selectPreferred(false)">
-                  Choose {{ rankedSongs[competitorIndex] }}
+                <button v-if="candidates.length" class="px-4 py-2 rounded border hover:bg-accent" @click="selectPreferred(false)">
+                  Choose {{ candidates[competitorIndex] }}
                 </button>
+              </div>
+              <div v-if="candidates.length" class="text-xs text-muted-foreground">
+                Comparing against {{ candidates[competitorIndex] }} ({{ Math.min(competitorIndex + 1, candidates.length) }}/{{ candidates.length }})
               </div>
             </div>
           </AlertDialogContent>
