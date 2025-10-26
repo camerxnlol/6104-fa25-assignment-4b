@@ -9,7 +9,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource/zalando-sans": "^5.2.1",
     "@fontsource/zalando-sans-expanded": "^5.2.1",
+    "@fontsource/zalando-sans-semiexpanded": "^5.2.1",
     "@tailwindcss/vite": "^4.1.15",
     "@vueuse/core": "^13.9.0",
     "axios": "^1.12.2",

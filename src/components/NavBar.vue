@@ -13,7 +13,7 @@ function go() { router.push(ctaTo.value) }
 <template>
   <nav class="w-full bg-transparent text-[var(--foreground)] fixed top-3 left-0 z-10">
     <div class="mx-auto max-w-6xl px-6 h-16 flex items-center justify-between">
-      <div class="font-extrabold text-xl uppercase tracking-wide select-none nav-fall-in">MELI</div>
+      <router-link to="/home" class="font-extrabold text-xl uppercase tracking-wide select-none nav-fall-in font-expanded">MELI</router-link>
       <button
         @click="go"
         class="px-0 py-2 bg-transparent text-[var(--foreground)] text-sm shadow-none rounded-none transition ghost-underline nav-fall-in"

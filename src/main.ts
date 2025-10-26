@@ -4,6 +4,9 @@ import router from './router'
 import './style.css'
 import '@fontsource/zalando-sans-expanded/400.css'
 import '@fontsource/zalando-sans-expanded/700.css'
+import '@fontsource/zalando-sans-semiexpanded/400.css'
+import '@fontsource/zalando-sans-semiexpanded/500.css'
+import '@fontsource/zalando-sans-semiexpanded/700.css'
 import App from './App.vue'
 
 const app = createApp(App)

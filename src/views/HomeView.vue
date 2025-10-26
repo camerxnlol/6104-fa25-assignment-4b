@@ -50,9 +50,9 @@ async function onGenerateRecommendations() {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center">
+  <div class="min-h-screen -mt-16 flex items-center justify-center">
     <div class="text-center space-y-4 uppercase text-[var(--foreground)]">
-      <h1 class="text-3xl font-semibold headline-words">
+      <h1 class="text-3xl font-semibold headline-words font-expanded">
         <span class="word">READY</span>
         <span class="word">TO</span>
         <span class="word">LISTEN,</span>
@@ -74,9 +74,9 @@ async function onGenerateRecommendations() {
               <AlertDialogDescription>
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <div class="space-y-4 mt-2">
+            <div class="space-y- mt-2">
               <NumberField v-model="songCount" class="px-40">
-                <Label>Number of Songs</Label>
+                <Label class="whitespace-nowrap">Number of Songs</Label>
                 <NumberFieldContent>
                   <NumberFieldDecrement />
                   <NumberFieldInput />
@@ -90,9 +90,12 @@ async function onGenerateRecommendations() {
                 </ul>
               </div>
             </div>
-            <div class="mt-6 flex justify-center">
-              <AlertDialogAction class="bg-transparent text-[var(--foreground)] px-0 ghost-underline btn-fade-late" @click="onGenerateRecommendations">
-                Go!
+            <div class="mt-3 flex justify-center">
+              <AlertDialogAction
+                class="bg-transparent text-[var(--foreground)] pb-0 px-0 ghost-underline btn-fade-late hover:bg-transparent focus:bg-transparent active:bg-transparent"
+                @click="onGenerateRecommendations"
+              >
+                GO!
               </AlertDialogAction>
             </div>
           </AlertDialogContent>

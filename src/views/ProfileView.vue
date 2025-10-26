@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useAuthStore } from '@/stores/auth';
 import { postApi, type Post } from '@/api';
@@ -15,6 +16,7 @@ import {
 } from '@/components/ui/alert-dialog'
 
 const auth = useAuthStore();
+const router = useRouter();
 const { userId } = storeToRefs(auth);
 
 const posts = ref<Post[]>([]);
@@ -60,11 +62,24 @@ onMounted(async () => {
     console.error('Error loading posts or reactions:', err);
   }
 });
+
+function onLogout() {
+  auth.logout();
+  router.push('/home');
+}
 </script>
 
 <template>
   <div class="p-6">
-    <h1 class="text-2xl font-semibold mb-4">Profile</h1>
+    <div class="mb-4 flex items-center justify-between">
+      <h1 class="text-2xl font-semibold">Profile</h1>
+      <button
+        class="px-0 py-2 bg-transparent text-[var(--foreground)] uppercase ghost-underline"
+        @click="onLogout"
+      >
+        LOGOUT
+      </button>
+    </div>
     <h2 class="text-xl font-medium mb-2">My Posts</h2>
     <div v-if="!posts.length" class="text-sm text-muted-foreground">No posts yet.</div>
 

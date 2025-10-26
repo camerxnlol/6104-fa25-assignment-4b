@@ -123,9 +123,11 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: "Zalando Sans Expanded", "Poppins", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    font-family: "Zalando Sans SemiExpanded", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   }
 }
+
+.font-expanded { font-family: "Zalando Sans Expanded", "Zalando Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans"; }
 
 /* Animated underline for ghost buttons/links */
 .ghost-underline {
@@ -133,13 +135,16 @@
   display: inline-block;
   text-decoration: none;
   line-height: 1;
+  vertical-align: baseline;
+  --underline-offset: 0.12em;
+  --underline-thickness: 1px;
 }
 .ghost-underline::after {
   content: "";
   position: absolute;
   left: 0;
-  bottom: 0.4em;
-  height: 1px;
+  bottom: var(--underline-offset);
+  height: var(--underline-thickness);
   width: 100%;
   background: currentColor;
   transform: scaleX(0);
