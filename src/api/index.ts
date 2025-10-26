@@ -3,6 +3,7 @@ export { rankingApi } from './ranking';
 export { reactionApi } from './reaction';
 export { songRecommenderApi } from './songRecommender';
 export { userAuthApi } from './userAuthentication';
+export { musicMetadataApi } from './musicMetadata';
 
 export type { Post } from './post';
 export type { RankedSong } from './ranking';

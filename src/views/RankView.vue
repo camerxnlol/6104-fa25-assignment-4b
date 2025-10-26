@@ -4,6 +4,8 @@ import { storeToRefs } from 'pinia';
 import { useAuthStore } from '@/stores/auth';
 import { rankingApi, type RankedSong } from '@/api';
 import { songRecommenderApi } from '@/api';
+import { musicMetadataApi } from '@/api';
+import type { SongMetadata } from '@/api/musicMetadata';
 import { postApi } from '@/api';
 import {
   AlertDialog,
@@ -14,6 +16,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import {
+  Card,
+  CardHeader,
+} from '@/components/ui/card'
+import SongArtwork from '@/components/SongArtwork.vue'
+import SongTitleArtist from '@/components/SongTitleArtist.vue'
 
 const auth = useAuthStore();
 const { userId, username } = storeToRefs(auth);
@@ -21,6 +29,7 @@ const { userId, username } = storeToRefs(auth);
 const pastRecommendations = ref<string[]>([]);
 const rankedSongs = ref<string[]>([]);
 const unrankedPastSongs = ref<string[]>([]);
+const songMeta = ref<Record<string, SongMetadata | null>>({});
 
 const openSongId = ref<string | null>(null);
 const activeSongId = ref<string | null>(null);
@@ -39,6 +48,14 @@ onMounted(async () => {
       rankedSongs.value = rankResponse.rankedSongs.map((r: {songId: string, score: number}) => r.songId);
       console.log('rankedSongs', rankedSongs.value);
       unrankedPastSongs.value = past.filter((song) => !rankedSongs.value.includes(song));
+    // Fetch MusicBrainz metadata per unranked song using lookupSongMetadata
+    for (const id of unrankedPastSongs.value) {
+      try {
+        songMeta.value[id] = await musicMetadataApi.lookupSongMetadata(id);
+      } catch (_) {
+        songMeta.value[id] = null;
+      }
+    }
   } catch (err) {
     console.error('Error fetching past recommendations or rankings:', err);
   }
@@ -132,21 +149,71 @@ async function selectPreferred(preferA: boolean) {
 
 <template>
   <div class="p-6 max-w-3xl mx-auto">
-    <h1 class="text-2xl font-semibold mb-4">Outstanding Recommendations</h1>
+    <h1 class="text-2xl font-semibold mb-4 text-center fade-in-400">OUTSTANDING RECOMMENDATIONS</h1>
     <div v-if="!unrankedPastSongs.length" class="text-sm text-muted-foreground">
-      No recommendations available.
     </div>
-    <ul v-else class="list-decimal pl-6 space-y-2">
-      <li v-for="song in unrankedPastSongs" :key="song">
+    <div v-else class="flex flex-col gap-4">
+      <div v-for="(song, idx) in unrankedPastSongs" :key="song" class="w-full px-36">
         <AlertDialog :open="openSongId === song" @update:open="(v) => onDialogOpenChange(song, v)">
-          <AlertDialogTrigger>
-            <button class="underline text-primary hover:opacity-80">{{ song }}</button>
+          <AlertDialogTrigger class="block w-full">
+            <Card class="w-full transition hover:shadow-md cursor-pointer card-slide-in" :style="{ animationDelay: (idx * 400) + 'ms' }">
+              <CardHeader class="flex flex-row items-center gap-4">
+                <Suspense>
+                  <template #default>
+                    <SongArtwork :song-id="song" :size="64" />
+                  </template>
+                  <template #fallback>
+                    <div class="w-16 h-16 rounded bg-foreground/20 border border-border/30 animate-pulse" aria-busy="true" />
+                  </template>
+                </Suspense>
+                <Suspense>
+                  <template #default>
+                    <SongTitleArtist :song-id="song" />
+                  </template>
+                  <template #fallback>
+                    <div class="space-y-1" aria-busy="true">
+                      <div class="h-4 w-28 bg-foreground/20 border border-border/30 rounded animate-pulse" />
+                      <div class="h-3 w-16 bg-foreground/20 border border-border/30 rounded animate-pulse" />
+                    </div>
+                  </template>
+                </Suspense>
+              </CardHeader>
+            </Card>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogCancel class="absolute right-4 top-4">Close</AlertDialogCancel>
             <AlertDialogHeader>
-              <AlertDialogTitle>{{ song }}</AlertDialogTitle>
+              <AlertDialogTitle>
+                {{ songMeta[song]?.title || 'No title' }}
+                <span class="text-sm text-muted-foreground">— {{ songMeta[song]?.artist || 'No artist' }}</span>
+              </AlertDialogTitle>
               <AlertDialogDescription>
+                <div class="flex items-start gap-4 mt-2">
+                  <Suspense>
+                    <template #default>
+                      <SongArtwork :song-id="song" :size="80" />
+                    </template>
+                    <template #fallback>
+                      <div class="w-20 h-20 rounded bg-foreground/20 border border-border/30 animate-pulse" aria-busy="true" />
+                    </template>
+                  </Suspense>
+                  <div class="text-xs space-y-1">
+                    <div><span class="font-medium">Song ID:</span> {{ song }}</div>
+                    <Suspense>
+                      <template #default>
+                        <div>
+                          <SongTitleArtist :song-id="song" />
+                        </div>
+                      </template>
+                      <template #fallback>
+                        <div class="space-y-1">
+                          <div class="h-4 w-28 bg-muted/20 rounded animate-pulse" />
+                          <div class="h-3 w-16 bg-muted/20 rounded animate-pulse" />
+                        </div>
+                      </template>
+                    </Suspense>
+                  </div>
+                </div>
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div class="mt-6 flex flex-col items-center gap-3">
@@ -164,8 +231,8 @@ async function selectPreferred(preferA: boolean) {
             </div>
           </AlertDialogContent>
         </AlertDialog>
-      </li>
-    </ul>
+      </div>
+    </div>
   </div>
 </template>
 
