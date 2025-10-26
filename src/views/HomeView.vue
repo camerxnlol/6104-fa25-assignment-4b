@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/number-field'
 
 const authStore = useAuthStore();
-const { username, userId } = storeToRefs(authStore);
+const { username, userId, isAuthenticated } = storeToRefs(authStore);
 
 const songCount = ref<number | null>(null);
 const recommendedSongs = ref<string[]>([]);
@@ -32,10 +32,14 @@ const recommendedSongs = ref<string[]>([]);
 async function onGenerateRecommendations() {
   recommendedSongs.value = [];
   const count = Number(songCount.value ?? 0);
-  if (!userId.value) return;
+  const uid = userId.value;
+  if (!isAuthenticated.value || !uid) {
+    router.push({ name: 'login' });
+    return;
+  }
   if (!Number.isFinite(count) || count <= 0) return;
   try {
-    const resp = await songRecommenderApi.generateRecommendation(userId.value, count);
+    const resp = await songRecommenderApi.generateRecommendation(uid, count);
     const list = resp.recommendedSongs ?? [];
     recommendedSongs.value = list;
     router.push({ name: 'rank' });
@@ -47,46 +51,61 @@ async function onGenerateRecommendations() {
 
 <template>
   <div class="min-h-screen flex items-center justify-center">
-    <div class="text-center space-y-4">
-      <h1 class="text-3xl font-semibold">Ready to listen, {{ username || 'guest' }}?</h1>
-      <AlertDialog>
-        <AlertDialogTrigger>
-          <button
-            class="px-4 py-2 rounded bg-[#02474D] text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-black/50"
-          >
-            Generate Recommendation
-          </button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogCancel class="absolute right-4 top-4">Close</AlertDialogCancel>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Generate Recommendation</AlertDialogTitle>
-            <AlertDialogDescription>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div class="space-y-4 mt-2">
-            <NumberField v-model="songCount" class="px-40">
-              <Label>Number of Songs</Label>
-              <NumberFieldContent>
-                <NumberFieldDecrement />
-                <NumberFieldInput />
-                <NumberFieldIncrement />
-              </NumberFieldContent>
-            </NumberField>
+    <div class="text-center space-y-4 uppercase text-[var(--foreground)]">
+      <h1 class="text-3xl font-semibold headline-words">
+        <span class="word">READY</span>
+        <span class="word">TO</span>
+        <span class="word">LISTEN,</span>
+        <span class="word">{{ (username || 'GUEST').toUpperCase() }}?</span>
+      </h1>
+      <div v-if="isAuthenticated">
+        <AlertDialog>
+          <AlertDialogTrigger>
+            <button
+              class="px-0 py-2 bg-transparent text-[var(--foreground)] focus:outline-none focus:ring-0 rounded-none shadow-none ghost-underline btn-fade-late"
+            >
+              GENERATE RECOMMENDATION
+            </button>
+          </AlertDialogTrigger>
+          <AlertDialogContent class="uppercase">
+            <AlertDialogCancel class="absolute right-4 top-4">Close</AlertDialogCancel>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Generate Recommendation</AlertDialogTitle>
+              <AlertDialogDescription>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div class="space-y-4 mt-2">
+              <NumberField v-model="songCount" class="px-40">
+                <Label>Number of Songs</Label>
+                <NumberFieldContent>
+                  <NumberFieldDecrement />
+                  <NumberFieldInput />
+                  <NumberFieldIncrement />
+                </NumberFieldContent>
+              </NumberField>
 
-            <div v-if="recommendedSongs.length" class="text-left">
-              <ul class="list-disc pl-5 space-y-1">
-                <li v-for="song in recommendedSongs" :key="song">{{ song }}</li>
-              </ul>
+              <div v-if="recommendedSongs.length" class="text-left">
+                <ul class="list-disc pl-5 space-y-1">
+                  <li v-for="song in recommendedSongs" :key="song">{{ song }}</li>
+                </ul>
+              </div>
             </div>
-          </div>
-          <div class="mt-6 flex justify-center">
-            <AlertDialogAction class="px-6 bg-[#02474D] text-white" @click="onGenerateRecommendations">
-              Go!
-            </AlertDialogAction>
-          </div>
-        </AlertDialogContent>
-      </AlertDialog>
+            <div class="mt-6 flex justify-center">
+              <AlertDialogAction class="bg-transparent text-[var(--foreground)] px-0 ghost-underline btn-fade-late" @click="onGenerateRecommendations">
+                Go!
+              </AlertDialogAction>
+            </div>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+      <div v-else>
+        <button
+          class="px-0 py-2 bg-transparent text-[var(--foreground)] focus:outline-none focus:ring-0 rounded-none shadow-none ghost-underline btn-fade-late"
+          @click="router.push({ name: 'login' })"
+        >
+          LOG IN TO GENERATE RECOMMENDATIONS
+        </button>
+      </div>
     </div>
   </div>
 </template>

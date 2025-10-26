@@ -46,12 +46,12 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.141 0.005 285.823);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.141 0.005 285.823);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.141 0.005 285.823);
+  --background: #1E1005;
+  --foreground: #FBF0DA;
+  --card: #1E1005;
+  --card-foreground: #FBF0DA;
+  --popover: #1E1005;
+  --popover-foreground: #FBF0DA;
   --primary: oklch(0.21 0.006 285.885);
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.967 0.001 286.375);
@@ -78,15 +78,17 @@
   --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
   --sidebar-border: oklch(0.92 0.004 286.32);
   --sidebar-ring: oklch(0.705 0.015 286.067);
+  /* animation timing */
+  --ani-duration: 2000ms;
 }
 
 .dark {
-  --background: oklch(0.141 0.005 285.823);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.141 0.005 285.823);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.141 0.005 285.823);
-  --popover-foreground: oklch(0.985 0 0);
+  --background: #1E1005;
+  --foreground: #FBF0DA;
+  --card: #1E1005;
+  --card-foreground: #FBF0DA;
+  --popover: #1E1005;
+  --popover-foreground: #FBF0DA;
   --primary: oklch(0.985 0 0);
   --primary-foreground: oklch(0.21 0.006 285.885);
   --secondary: oklch(0.274 0.006 286.033);
@@ -121,5 +123,80 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: "Zalando Sans Expanded", "Poppins", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   }
 }
+
+/* Animated underline for ghost buttons/links */
+.ghost-underline {
+  position: relative;
+  display: inline-block;
+  text-decoration: none;
+  line-height: 1;
+}
+.ghost-underline::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0.4em;
+  height: 1px;
+  width: 100%;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 220ms ease;
+}
+.ghost-underline:hover::after,
+.ghost-underline:focus-visible::after {
+  transform: scaleX(1);
+}
+
+/* Intro animations */
+@keyframes fall-in {
+  from { opacity: 0; transform: translateY(-16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes rise-reveal {
+  0% { opacity: 0; transform: translateY(16px); clip-path: inset(0 100% 0 0); }
+  15% { opacity: 1; }
+  100% { opacity: 1; transform: translateY(0); clip-path: inset(0 0 0 0); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.nav-fall-in {
+  animation: fall-in var(--ani-duration) cubic-bezier(.2,.8,.2,1) both;
+  will-change: transform, opacity;
+}
+.headline-rise-reveal {
+  animation: rise-reveal var(--ani-duration) cubic-bezier(.2,.8,.2,1) both;
+  will-change: clip-path, transform, opacity;
+}
+.btn-fade-late {
+  opacity: 0;
+  animation: fade-in var(--ani-duration) ease both;
+  animation-delay: calc(var(--ani-duration) * 0.4);
+}
+
+@keyframes rise-word {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.headline-words .word {
+  display: inline-block;
+  will-change: transform, opacity;
+  animation: rise-word var(--ani-duration) cubic-bezier(.2,.8,.2,1) both;
+}
+.headline-words .word + .word { margin-left: 0.25em; }
+.headline-words .word:nth-child(1) { animation-delay: 0s; }
+.headline-words .word:nth-child(2) { animation-delay: calc(var(--ani-duration) * 0.06); }
+.headline-words .word:nth-child(3) { animation-delay: calc(var(--ani-duration) * 0.12); }
+.headline-words .word:nth-child(4) { animation-delay: calc(var(--ani-duration) * 0.18); }
+.headline-words .word:nth-child(5) { animation-delay: calc(var(--ani-duration) * 0.24); }
+.headline-words .word:nth-child(6) { animation-delay: calc(var(--ani-duration) * 0.30); }
+.headline-words .word:nth-child(7) { animation-delay: calc(var(--ani-duration) * 0.36); }
+.headline-words .word:nth-child(8) { animation-delay: calc(var(--ani-duration) * 0.42); }
+.headline-words .word:nth-child(9) { animation-delay: calc(var(--ani-duration) * 0.48); }
+.headline-words .word:nth-child(10) { animation-delay: calc(var(--ani-duration) * 0.54); }

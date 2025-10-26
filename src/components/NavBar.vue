@@ -5,18 +5,18 @@ import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const auth = useAuthStore()
-const ctaText = computed(() => (auth.isAuthenticated ? 'Profile' : 'Login'))
+const ctaText = computed(() => (auth.isAuthenticated ? 'PROFILE' : 'LOGIN'))
 const ctaTo = computed(() => (auth.isAuthenticated ? '/profile' : '/login'))
 function go() { router.push(ctaTo.value) }
 </script>
 
 <template>
-  <nav class="w-full bg-[#02474D] text-white">
+  <nav class="w-full bg-transparent text-[var(--foreground)] fixed top-3 left-0 z-10">
     <div class="mx-auto max-w-6xl px-6 h-16 flex items-center justify-between">
-      <div class="font-semibold text-lg text-white select-none">Meli</div>
+      <div class="font-extrabold text-xl uppercase tracking-wide select-none nav-fall-in">MELI</div>
       <button
         @click="go"
-        class="px-4 py-2 rounded-lg bg-white text-[#02474D] font-medium shadow-sm hover:shadow-md hover:bg-white/90 transition"
+        class="px-0 py-2 bg-transparent text-[var(--foreground)] text-sm shadow-none rounded-none transition ghost-underline nav-fall-in"
       >
         {{ ctaText }}
       </button>
