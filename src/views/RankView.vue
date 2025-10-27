@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue';
+import { onMounted, ref, computed, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useAuthStore } from '@/stores/auth';
 import { rankingApi, type RankedSong } from '@/api';
@@ -11,7 +11,6 @@ import {
   AlertDialog,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
@@ -28,6 +27,15 @@ const { userId, username } = storeToRefs(auth);
 
 const pastRecommendations = ref<string[]>([]);
 const rankedSongs = ref<string[]>([]);
+const rankedList = ref<RankedSong[]>([]);
+const rankInfoById = computed(() => {
+  const sorted = [...rankedList.value].sort((a, b) => b.score - a.score);
+  const map: Record<string, { position: number; score: number }> = {};
+  sorted.forEach((entry, i) => {
+    map[entry.songId] = { position: i + 1, score: entry.score };
+  });
+  return map;
+});
 const unrankedPastSongs = ref<string[]>([]);
 const songMeta = ref<Record<string, SongMetadata | null>>({});
 
@@ -36,6 +44,23 @@ const activeSongId = ref<string | null>(null);
 const competitorIndex = ref(0);
 const direction = ref<"up" | "down" | null>(null);
 const candidates = computed(() => rankedSongs.value.filter((id) => id !== activeSongId.value));
+const currentCompetitorId = computed(() => candidates.value[competitorIndex.value]);
+const currentCompetitorIdSafe = computed(() => currentCompetitorId.value ?? '');
+
+function scoreDisplayById(id: string): string | null {
+  const info = rankInfoById.value[id];
+  if (!info) return null;
+  return (info.score / 10).toFixed(1);
+}
+
+function getScoreColorClassById(id: string): string {
+  const info = rankInfoById.value[id];
+  if (!info) return '';
+  const val = info.score / 10;
+  if (val <= 3.3) return 'text-red-600';
+  if (val <= 6.6) return 'text-yellow-600';
+  return 'text-green-600';
+}
 
 onMounted(async () => {
   if (!userId.value) return;
@@ -45,6 +70,7 @@ onMounted(async () => {
       const rankResponse = await rankingApi.getRankings(userId.value);
       pastRecommendations.value = past;
       // rankResponse should have rankedSongs: {songId: string, score: number}[]
+      rankedList.value = rankResponse.rankedSongs as RankedSong[];
       rankedSongs.value = rankResponse.rankedSongs.map((r: {songId: string, score: number}) => r.songId);
       console.log('rankedSongs', rankedSongs.value);
       unrankedPastSongs.value = past.filter((song) => !rankedSongs.value.includes(song));
@@ -61,7 +87,7 @@ onMounted(async () => {
   }
 });
 
-function onDialogOpenChange(song: string, isOpen: boolean) {
+async function onDialogOpenChange(song: string, isOpen: boolean) {
   if (isOpen) {
     activeSongId.value = song;
     competitorIndex.value = 0;
@@ -74,6 +100,18 @@ function onDialogOpenChange(song: string, isOpen: boolean) {
   }
 }
 
+watch([currentCompetitorId, openSongId], async ([id, open]) => {
+  if (!open) return;
+  if (!id) return;
+  if (songMeta.value[id] === undefined) {
+    try {
+      songMeta.value[id] = await musicMetadataApi.lookupSongMetadata(id);
+    } catch (_) {
+      songMeta.value[id] = null;
+    }
+  }
+});
+
 async function finalizeComparison(preferredId: string, otherId?: string) {
   if (!userId.value || !activeSongId.value) return;
   const songA = activeSongId.value;
@@ -85,6 +123,8 @@ async function finalizeComparison(preferredId: string, otherId?: string) {
       const list: RankedSong[] = Array.isArray((ranks as any)?.rankedSongs)
         ? (ranks as any).rankedSongs
         : (Array.isArray(ranks) ? (ranks as RankedSong[]) : []);
+      rankedList.value = list;
+      rankedSongs.value = list.map((r) => r.songId);
       const entry = list.find((r) => r.songId === songA);
       const normalized = entry ? (entry.score / 10).toFixed(1) : 'N/A';
       const content = `${username.value ?? 'user'} ranked ${songA} ${normalized}`;
@@ -183,50 +223,75 @@ async function selectPreferred(preferA: boolean) {
           <AlertDialogContent>
             <AlertDialogCancel class="absolute right-4 top-4">Close</AlertDialogCancel>
             <AlertDialogHeader>
-              <AlertDialogTitle>
-                {{ songMeta[song]?.title || 'No title' }}
-                <span class="text-sm text-muted-foreground">— {{ songMeta[song]?.artist || 'No artist' }}</span>
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                <div class="flex items-start gap-4 mt-2">
+              <AlertDialogTitle>COMPARE</AlertDialogTitle>
+            </AlertDialogHeader>
+            <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-6 items-start">
+              <div class="flex flex-col items-center text-center gap-2">
+                <div class="relative inline-block">
                   <Suspense>
                     <template #default>
-                      <SongArtwork :song-id="song" :size="80" />
+                      <SongArtwork :song-id="song" :size="120" />
                     </template>
                     <template #fallback>
-                      <div class="w-20 h-20 rounded bg-foreground/20 border border-border/30 animate-pulse" aria-busy="true" />
+                      <div class="w-28 h-28 rounded bg-foreground/20 border border-border/30 animate-pulse" aria-busy="true" />
                     </template>
                   </Suspense>
-                  <div class="text-xs space-y-1">
-                    <div><span class="font-medium">Song ID:</span> {{ song }}</div>
-                    <Suspense>
-                      <template #default>
-                        <div>
-                          <SongTitleArtist :song-id="song" />
-                        </div>
-                      </template>
-                      <template #fallback>
-                        <div class="space-y-1">
-                          <div class="h-4 w-28 bg-muted/20 rounded animate-pulse" />
-                          <div class="h-3 w-16 bg-muted/20 rounded animate-pulse" />
-                        </div>
-                      </template>
-                    </Suspense>
+                  <div v-if="scoreDisplayById(song)" class="absolute top-1 right-1 w-8 h-8 rounded-full bg-white border border-border text-xs font-semibold shadow-sm flex items-center justify-center" :class="getScoreColorClassById(song)" :aria-label="`Score: ${scoreDisplayById(song)}`">
+                    {{ scoreDisplayById(song) }}
                   </div>
                 </div>
-              </AlertDialogDescription>
-            </AlertDialogHeader>
+                <div class="text-sm">
+                  <Suspense>
+                    <template #default>
+                      <SongTitleArtist :song-id="song" />
+                    </template>
+                    <template #fallback>
+                      <div class="space-y-1">
+                        <div class="h-4 w-32 bg-muted/20 rounded animate-pulse" />
+                        <div class="h-3 w-20 bg-muted/20 rounded animate-pulse" />
+                      </div>
+                    </template>
+                  </Suspense>
+                </div>
+              </div>
+
+              <div v-if="candidates.length" class="flex flex-col items-center text-center gap-2">
+                <div class="relative inline-block">
+                  <Suspense>
+                    <template #default>
+                      <SongArtwork :song-id="currentCompetitorIdSafe" :size="120" />
+                    </template>
+                    <template #fallback>
+                      <div class="w-28 h-28 rounded bg-foreground/20 border border-border/30 animate-pulse" aria-busy="true" />
+                    </template>
+                  </Suspense>
+                  <div v-if="scoreDisplayById(currentCompetitorIdSafe)" class="absolute top-1 right-1 w-8 h-8 rounded-full bg-white border border-border text-xs font-semibold shadow-sm flex items-center justify-center" :class="getScoreColorClassById(currentCompetitorIdSafe)" :aria-label="`Score: ${scoreDisplayById(currentCompetitorIdSafe)}`">
+                    {{ scoreDisplayById(currentCompetitorIdSafe) }}
+                  </div>
+                </div>
+                <div class="text-sm">
+                  <Suspense>
+                    <template #default>
+                      <SongTitleArtist :song-id="currentCompetitorIdSafe" />
+                    </template>
+                    <template #fallback>
+                      <div class="space-y-1">
+                        <div class="h-4 w-32 bg-muted/20 rounded animate-pulse" />
+                        <div class="h-3 w-20 bg-muted/20 rounded animate-pulse" />
+                      </div>
+                    </template>
+                  </Suspense>
+                </div>
+              </div>
+            </div>
             <div class="mt-6 flex flex-col items-center gap-3">
               <div class="flex gap-3">
-                <button class="px-4 py-2 rounded bg-[#02474D] text-white hover:opacity-90" @click="selectPreferred(true)">
-                  Choose This Song
+                <button class="px-4 py-2 rounded bg-primary text-primary-foreground hover:opacity-90" @click="selectPreferred(true)">
+                  Choose {{ songMeta[song]?.title || 'This Song' }}
                 </button>
                 <button v-if="candidates.length" class="px-4 py-2 rounded border hover:bg-accent" @click="selectPreferred(false)">
-                  Choose {{ candidates[competitorIndex] }}
+                  Choose {{ songMeta[currentCompetitorIdSafe]?.title || currentCompetitorIdSafe }}
                 </button>
-              </div>
-              <div v-if="candidates.length" class="text-xs text-muted-foreground">
-                Comparing against {{ candidates[competitorIndex] }} ({{ Math.min(competitorIndex + 1, candidates.length) }}/{{ candidates.length }})
               </div>
             </div>
           </AlertDialogContent>
