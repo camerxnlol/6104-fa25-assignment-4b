@@ -42,6 +42,7 @@ const activeUserId = computed<string | null>(() => {
   const paramUserId = route.params.userId ? String(route.params.userId) : null;
   return paramUserId || userId.value || null;
 });
+const isSelfProfile = computed<boolean>(() => !!userId.value && activeUserId.value === userId.value);
 
 const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥', '🎵'];
 
@@ -214,6 +215,7 @@ const OneLineSongText = defineComponent<{ username?: string | null; songId: stri
                 </p>
                 <div class="flex items-center gap-2">
                   <button
+                    v-if="isSelfProfile"
                     class="px-3 py-1.5 rounded border hover:bg-accent text-sm uppercase w-max"
                     @click="router.push({ name: 'rank' })"
                   >
