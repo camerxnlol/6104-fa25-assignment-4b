@@ -290,7 +290,7 @@ async function selectPreferred(preferA: boolean) {
                   Choose {{ songMeta[song]?.title || 'This Song' }}
                 </button>
                 <button v-if="candidates.length" class="px-4 py-2 rounded border hover:bg-accent" @click="selectPreferred(false)">
-                  Choose {{ songMeta[currentCompetitorIdSafe]?.title || currentCompetitorIdSafe }}
+                  Choose {{ songMeta[currentCompetitorIdSafe]?.title || 'This Song' }}
                 </button>
               </div>
             </div>

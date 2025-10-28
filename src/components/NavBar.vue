@@ -1,13 +1,27 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
-const ctaText = computed(() => (auth.isAuthenticated ? 'PROFILE' : 'LOGIN'))
+
+const ctaText = computed(() => {
+  if (auth.isAuthenticated && route.name === 'profile') return 'LOGOUT'
+  return auth.isAuthenticated ? 'PROFILE' : 'LOGIN'
+})
+
 const ctaTo = computed(() => (auth.isAuthenticated ? '/profile' : '/login'))
-function go() { router.push(ctaTo.value) }
+
+function go() {
+  if (auth.isAuthenticated && route.name === 'profile') {
+    auth.logout()
+    router.push('/home')
+    return
+  }
+  router.push(ctaTo.value)
+}
 </script>
 
 <template>
