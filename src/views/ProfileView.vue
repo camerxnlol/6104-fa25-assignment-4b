@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth';
 import { postApi, type Post } from '@/api';
 import { reactionApi, type Reaction } from '@/api';
 import { musicMetadataApi } from '@/api';
+import { rankingApi, type RankedSong } from '@/api';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -29,6 +30,9 @@ const posts = ref<Post[]>([]);
 const reactionsByPost = ref<Record<string, Record<string, number>>>({});
 const emojiPickerOpenFor = ref<string | null>(null);
 const openPostId = ref<string | null>(null);
+const rankedSongs = ref<RankedSong[]>([]);
+const topRank = ref<{ id: string; score: number } | null>(null);
+const topTitle = ref<string | null>(null);
 
 const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥', '🎵'];
 
@@ -36,6 +40,37 @@ async function loadPosts() {
   if (!userId.value) return;
   const result = await postApi.getPostsByAuthor(userId.value);
   posts.value = (result ?? []).map((p) => p.post);
+}
+
+async function loadRankings() {
+  if (!userId.value) return;
+  try {
+    const resp = await rankingApi.getRankings(userId.value);
+    rankedSongs.value = resp.rankedSongs || [];
+    if (rankedSongs.value.length) {
+      const sorted = [...rankedSongs.value].sort((a, b) => b.score - a.score);
+      const best = sorted[0];
+      if (best) {
+        topRank.value = { id: best.songId, score: Number((best.score / 10).toFixed(1)) };
+        try {
+          const meta = await musicMetadataApi.lookupSongMetadata(best.songId);
+          topTitle.value = meta?.title || best.songId;
+        } catch (_) {
+          topTitle.value = best.songId;
+        }
+      } else {
+        topRank.value = null;
+        topTitle.value = null;
+      }
+    } else {
+      topRank.value = null;
+      topTitle.value = null;
+    }
+  } catch (_) {
+    rankedSongs.value = [];
+    topRank.value = null;
+    topTitle.value = null;
+  }
 }
 
 function aggregateReactions(reactions: Array<{ reactions: Reaction }>): Record<string, number> {
@@ -62,6 +97,7 @@ async function addReaction(postId: string, emoji: string) {
 onMounted(async () => {
   try {
     await loadPosts();
+    await loadRankings();
     // Load reactions for each post initially so they show on the list
     await Promise.all(posts.value.map((p) => loadReactions(p._id)));
   } catch (err) {
@@ -113,19 +149,31 @@ const OneLineSongText = defineComponent<{ username?: string | null; songId: stri
         <CardHeader class="gap-1 !px-3 pb-2">
           <div class="flex items-center justify-between gap-3">
             <div class="flex items-center gap-3 flex-1">
-              <div class="flex-1 text-left">
+              <div class="flex-1 text-left flex flex-col">
                 <p class="text-left text-3xl font-semibold">
-                  {{ (username || 'User') + "'s RANKINGS" }}
+                  {{ (username || 'User') + "'s" }}
                 </p>
+                <p class="text-left text-2xl font-semibold pb-3">
+                  RANKINGS
+                </p>
+                <button
+                  class="px-3 py-1.5 rounded border hover:bg-accent text-sm uppercase w-max"
+                  @click="router.push({ name: 'rank' })"
+                >
+                  view recommendations
+                </button>
               </div>
             </div>
-            <div class="flex items-center justify-center">
-              <button
-                class="px-3 py-1.5 rounded border hover:bg-accent text-sm uppercase"
-                @click="router.push({ name: 'rank' })"
-              >
-                view recommendations
-              </button>
+            <div class="text-right text-sm">
+              <div>
+                <span class="text-muted-foreground">Total rankings:</span>
+                <span class="font-semibold ml-1">{{ rankedSongs.length }}</span>
+              </div>
+              <div class="mt-1">
+                <span class="text-muted-foreground">Highest rated:</span>
+                <span v-if="topRank && topTitle" class="font-semibold ml-1">{{ topTitle }} - {{ topRank.score.toFixed(1) }}</span>
+                <span v-else class="text-muted-foreground ml-1">N/A</span>
+              </div>
             </div>
           </div>
         </CardHeader>
