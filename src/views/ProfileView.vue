@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import { onMounted, ref, defineComponent, h } from 'vue';
-import { useRouter } from 'vue-router';
+import { onMounted, ref, defineComponent, h, watch, computed } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useAuthStore } from '@/stores/auth';
 import { postApi, type Post } from '@/api';
 import { reactionApi, type Reaction } from '@/api';
 import { musicMetadataApi } from '@/api';
 import { rankingApi, type RankedSong } from '@/api';
+import { userAuthApi } from '@/api';
 import {
   AlertDialog,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
@@ -24,28 +24,37 @@ import SongArtwork from '@/components/SongArtwork.vue'
 
 const auth = useAuthStore();
 const router = useRouter();
+const route = useRoute();
 const { userId, username } = storeToRefs(auth);
 
 const posts = ref<Post[]>([]);
 const reactionsByPost = ref<Record<string, Record<string, number>>>({});
 const emojiPickerOpenFor = ref<string | null>(null);
+const emojiPickerOpenForModal = ref<string | null>(null);
 const openPostId = ref<string | null>(null);
 const rankedSongs = ref<RankedSong[]>([]);
 const topRank = ref<{ id: string; score: number } | null>(null);
 const topTitle = ref<string | null>(null);
+const displayUsername = ref<string | null>(null);
+
+// Determine which user's profile we're viewing: self or :userId route param
+const activeUserId = computed<string | null>(() => {
+  const paramUserId = route.params.userId ? String(route.params.userId) : null;
+  return paramUserId || userId.value || null;
+});
 
 const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥', '🎵'];
 
 async function loadPosts() {
-  if (!userId.value) return;
-  const result = await postApi.getPostsByAuthor(userId.value);
+  if (!activeUserId.value) return;
+  const result = await postApi.getPostsByAuthor(activeUserId.value);
   posts.value = (result ?? []).map((p) => p.post);
 }
 
 async function loadRankings() {
-  if (!userId.value) return;
+  if (!activeUserId.value) return;
   try {
-    const resp = await rankingApi.getRankings(userId.value);
+    const resp = await rankingApi.getRankings(activeUserId.value);
     rankedSongs.value = resp.rankedSongs || [];
     if (rankedSongs.value.length) {
       const sorted = [...rankedSongs.value].sort((a, b) => b.score - a.score);
@@ -73,6 +82,24 @@ async function loadRankings() {
   }
 }
 
+async function loadDisplayUsername() {
+  // If viewing own profile, use store username; else fetch by userId
+  if (!activeUserId.value) {
+    displayUsername.value = username.value ?? null;
+    return;
+  }
+  if (activeUserId.value === userId.value) {
+    displayUsername.value = username.value ?? null;
+    return;
+  }
+  try {
+    const resp = await userAuthApi.getUsername(activeUserId.value);
+    displayUsername.value = Array.isArray(resp) && resp[0]?.username ? resp[0].username : null;
+  } catch (_) {
+    displayUsername.value = null;
+  }
+}
+
 function aggregateReactions(reactions: Array<{ reactions: Reaction }>): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const item of reactions) {
@@ -96,14 +123,43 @@ async function addReaction(postId: string, emoji: string) {
 
 onMounted(async () => {
   try {
-    await loadPosts();
-    await loadRankings();
-    // Load reactions for each post initially so they show on the list
+    await Promise.all([loadDisplayUsername(), loadPosts(), loadRankings()]);
     await Promise.all(posts.value.map((p) => loadReactions(p._id)));
   } catch (err) {
-    console.error('Error loading posts or reactions:', err);
+    console.error('Error loading profile data:', err);
   }
 });
+
+watch(activeUserId, async () => {
+  try {
+    posts.value = [];
+    rankedSongs.value = [];
+    topRank.value = null;
+    topTitle.value = null;
+    await Promise.all([loadDisplayUsername(), loadPosts(), loadRankings()]);
+    await Promise.all(posts.value.map((p) => loadReactions(p._id)));
+  } catch (err) {
+    console.error('Error reloading profile data:', err);
+  }
+});
+
+watch(openPostId, (val) => {
+  if (val) {
+    // Dialog opened → ensure feed emoji pickers are closed
+    emojiPickerOpenFor.value = null;
+  } else {
+    // Dialog closed → ensure modal emoji pickers are closed
+    emojiPickerOpenForModal.value = null;
+  }
+});
+
+// feed reaction toggling handled inline; modal toggle ensures feed picker is closed
+
+function toggleModalEmoji(postId: string) {
+  emojiPickerOpenForModal.value = emojiPickerOpenForModal.value === postId ? null : postId;
+  // Close feed picker if open
+  emojiPickerOpenFor.value = null;
+}
 
 // no-op: page-level logout removed; use navbar logout instead
 
@@ -151,17 +207,25 @@ const OneLineSongText = defineComponent<{ username?: string | null; songId: stri
             <div class="flex items-center gap-3 flex-1">
               <div class="flex-1 text-left flex flex-col">
                 <p class="text-left text-3xl font-semibold">
-                  {{ (username || 'User') + "'s" }}
+                  {{ (displayUsername || username || 'User') + "'s" }}
                 </p>
                 <p class="text-left text-2xl font-semibold pb-3">
                   RANKINGS
                 </p>
-                <button
-                  class="px-3 py-1.5 rounded border hover:bg-accent text-sm uppercase w-max"
-                  @click="router.push({ name: 'rank' })"
-                >
-                  view recommendations
-                </button>
+                <div class="flex items-center gap-2">
+                  <button
+                    class="px-3 py-1.5 rounded border hover:bg-accent text-sm uppercase w-max"
+                    @click="router.push({ name: 'rank' })"
+                  >
+                    view recommendations
+                  </button>
+                  <button
+                    class="px-3 py-1.5 rounded border hover:bg-accent text-sm uppercase w-max"
+                    @click="router.push({ name: 'friends' })"
+                  >
+                    friends
+                  </button>
+                </div>
               </div>
             </div>
             <div class="text-right text-sm">
@@ -268,41 +332,83 @@ const OneLineSongText = defineComponent<{ username?: string | null; songId: stri
             <AlertDialogCancel class="absolute right-4 top-4">Close</AlertDialogCancel>
             <AlertDialogHeader>
               <AlertDialogTitle>Post</AlertDialogTitle>
-              <AlertDialogDescription>
-                {{ p.content }}
-              </AlertDialogDescription>
             </AlertDialogHeader>
 
-            <div class="mt-4 flex items-center gap-3">
-              <div class="flex flex-wrap items-center gap-2">
-                <template v-for="(count, emoji) in reactionsByPost[p._id]" :key="`${p._id}-${emoji}`">
+            <div class="space-y-2">
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3 flex-1">
+                  <div>
+                    <Suspense>
+                      <template #default>
+                        <SongArtwork :song-id="parsePostContent(p.content).songId || ''" :size="64" />
+                      </template>
+                      <template #fallback>
+                        <div class="w-16 h-16 rounded bg-foreground/20 border border-border/30 animate-pulse" aria-busy="true" />
+                      </template>
+                    </Suspense>
+                  </div>
+                  <div class="flex-1 text-left">
+                    <template v-if="parsePostContent(p.content).songId">
+                      <Suspense>
+                        <template #default>
+                          <OneLineSongText :username="parsePostContent(p.content).username" :songId="parsePostContent(p.content).songId!" />
+                        </template>
+                        <template #fallback>
+                          <span class="space-y-1" aria-busy="true">
+                            <span class="h-4 w-48 bg-foreground/20 border border-border/30 rounded inline-block align-middle animate-pulse" />
+                          </span>
+                        </template>
+                      </Suspense>
+                    </template>
+                    <template v-else>
+                      <p class="text-left">{{ p.content }}</p>
+                    </template>
+                  </div>
+                </div>
+                <div v-if="parsePostContent(p.content).score != null" class="flex items-center justify-center self-center">
+                  <div
+                    class="w-12 h-12 rounded-full bg-white border border-border text-lg font-semibold shadow-sm flex items-center justify-center"
+                    :class="getScoreColorClass(parsePostContent(p.content).score)"
+                    :aria-label="`Score: ${parsePostContent(p.content).score}`"
+                  >
+                    {{ Number(parsePostContent(p.content).score).toFixed(1) }}
+                  </div>
+                </div>
+              </div>
+              <div class="flex items-center justify-between mt-1">
+                <div class="text-xs text-muted-foreground text-left">
+                  {{ new Date(p.timestamp).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' }) }}
+                </div>
+                <div class="relative self-center">
+                  <button
+                    class="h-6 w-6 rounded-full border flex items-center justify-center hover:bg-accent"
+                    aria-label="Add reaction"
+                    @click.stop="toggleModalEmoji(p._id)"
+                  >
+                    +
+                  </button>
+                  <div
+                    v-if="emojiPickerOpenForModal === p._id"
+                    class="absolute right-0 z-10 mt-2 w-44 rounded border bg-white p-2 shadow-md grid grid-cols-7 gap-1"
+                  >
+                    <button
+                      v-for="e in EMOJIS"
+                      :key="e"
+                      class="h-8 w-8 flex items-center justify-center rounded hover:bg-accent"
+                      @click.stop="addReaction(p._id, e)"
+                    >
+                      {{ e }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-1 flex flex-wrap items-center gap-1.5">
+                <template v-for="(count, emoji) in reactionsByPost[p._id]" :key="`${p._id}-modal-${emoji}`">
                   <span class="inline-flex items-center gap-1 rounded border px-2 py-0.5 text-sm">
                     <span>{{ emoji }}</span>
                     <span class="text-muted-foreground">{{ count }}</span>
                   </span>
                 </template>
-              </div>
-              <div class="relative">
-                <button
-                  class="h-6 w-6 rounded-full border flex items-center justify-center hover:bg-accent"
-                  aria-label="Add reaction"
-                  @click.stop="emojiPickerOpenFor = emojiPickerOpenFor === p._id ? null : p._id"
-                >
-                  +
-                </button>
-                <div
-                  v-if="emojiPickerOpenFor === p._id"
-                  class="absolute z-10 mt-2 w-44 rounded border bg-white p-2 shadow-md grid grid-cols-7 gap-1"
-                >
-                  <button
-                    v-for="e in EMOJIS"
-                    :key="e"
-                    class="h-8 w-8 flex items-center justify-center rounded hover:bg-accent"
-                    @click.stop="addReaction(p._id, e)"
-                  >
-                    {{ e }}
-                  </button>
-                </div>
               </div>
             </div>
           </AlertDialogContent>
