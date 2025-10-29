@@ -259,7 +259,7 @@ async function selectPreferred(preferA: boolean) {
                 <div class="relative inline-block">
                   <Suspense>
                     <template #default>
-                      <SongArtwork :song-id="currentCompetitorIdSafe" :size="120" />
+                      <SongArtwork :key="currentCompetitorIdSafe" :song-id="currentCompetitorIdSafe" :size="120" />
                     </template>
                     <template #fallback>
                       <div class="w-28 h-28 rounded bg-foreground/20 border border-border/30 animate-pulse" aria-busy="true" />
@@ -272,7 +272,7 @@ async function selectPreferred(preferA: boolean) {
                 <div class="text-sm">
                   <Suspense>
                     <template #default>
-                      <SongTitleArtist :song-id="currentCompetitorIdSafe" />
+                      <SongTitleArtist :key="currentCompetitorIdSafe" :song-id="currentCompetitorIdSafe" />
                     </template>
                     <template #fallback>
                       <div class="space-y-1">

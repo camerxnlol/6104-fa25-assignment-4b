@@ -32,6 +32,7 @@ const reactionsByPost = ref<Record<string, Record<string, number>>>({});
 const emojiPickerOpenFor = ref<string | null>(null);
 const emojiPickerOpenForModal = ref<string | null>(null);
 const openPostId = ref<string | null>(null);
+const kebabOpenFor = ref<string | null>(null);
 const rankedSongs = ref<RankedSong[]>([]);
 const topRank = ref<{ id: string; score: number } | null>(null);
 const topTitle = ref<string | null>(null);
@@ -49,7 +50,9 @@ const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥', '🎵'];
 async function loadPosts() {
   if (!activeUserId.value) return;
   const result = await postApi.getPostsByAuthor(activeUserId.value);
-  posts.value = (result ?? []).map((p) => p.post);
+  posts.value = (result ?? [])
+    .map((p) => p.post)
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 }
 
 async function loadRankings() {
@@ -151,6 +154,7 @@ watch(openPostId, (val) => {
   } else {
     // Dialog closed → ensure modal emoji pickers are closed
     emojiPickerOpenForModal.value = null;
+    kebabOpenFor.value = null;
   }
 });
 
@@ -160,6 +164,25 @@ function toggleModalEmoji(postId: string) {
   emojiPickerOpenForModal.value = emojiPickerOpenForModal.value === postId ? null : postId;
   // Close feed picker if open
   emojiPickerOpenFor.value = null;
+}
+
+function toggleKebabMenu(postId: string) {
+  kebabOpenFor.value = kebabOpenFor.value === postId ? null : postId;
+  // Close any emoji pickers when opening kebab
+  emojiPickerOpenFor.value = null;
+  emojiPickerOpenForModal.value = null;
+}
+
+async function deletePostById(postId: string) {
+  try {
+    await postApi.delete(postId);
+    posts.value = posts.value.filter((p) => p._id !== postId);
+    delete reactionsByPost.value[postId];
+    if (openPostId.value === postId) openPostId.value = null;
+    kebabOpenFor.value = null;
+  } catch (err) {
+    console.error('Failed to delete post:', err);
+  }
 }
 
 // no-op: page-level logout removed; use navbar logout instead
@@ -222,6 +245,7 @@ const OneLineSongText = defineComponent<{ username?: string | null; songId: stri
                     view recommendations
                   </button>
                   <button
+                    v-if="isSelfProfile"
                     class="px-3 py-1.5 rounded border hover:bg-accent text-sm uppercase w-max"
                     @click="router.push({ name: 'friends' })"
                   >
@@ -306,7 +330,7 @@ const OneLineSongText = defineComponent<{ username?: string | null; songId: stri
                     </button>
                     <div
                       v-if="emojiPickerOpenFor === p._id"
-                      class="absolute right-0 z-10 mt-2 w-44 rounded border bg-white p-2 shadow-md grid grid-cols-7 gap-1"
+                      class="absolute right-0 z-50 mt-2 w-44 rounded border bg-white p-2 shadow-md grid grid-cols-7 gap-1"
                     >
                       <button
                         v-for="e in EMOJIS"
@@ -381,26 +405,48 @@ const OneLineSongText = defineComponent<{ username?: string | null; songId: stri
                 <div class="text-xs text-muted-foreground text-left">
                   {{ new Date(p.timestamp).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' }) }}
                 </div>
-                <div class="relative self-center">
-                  <button
-                    class="h-6 w-6 rounded-full border flex items-center justify-center hover:bg-accent"
-                    aria-label="Add reaction"
-                    @click.stop="toggleModalEmoji(p._id)"
-                  >
-                    +
-                  </button>
-                  <div
-                    v-if="emojiPickerOpenForModal === p._id"
-                    class="absolute right-0 z-10 mt-2 w-44 rounded border bg-white p-2 shadow-md grid grid-cols-7 gap-1"
-                  >
+                <div class="relative self-center flex items-center gap-2">
+                  <div class="relative">
                     <button
-                      v-for="e in EMOJIS"
-                      :key="e"
-                      class="h-8 w-8 flex items-center justify-center rounded hover:bg-accent"
-                      @click.stop="addReaction(p._id, e)"
+                      class="h-6 w-6 rounded-full border flex items-center justify-center hover:bg-accent"
+                      aria-label="Add reaction"
+                      @click.stop="toggleModalEmoji(p._id)"
                     >
-                      {{ e }}
+                      +
                     </button>
+                    <div
+                      v-if="emojiPickerOpenForModal === p._id"
+                      class="absolute right-0 z-10 mt-2 w-44 rounded border bg-white p-2 shadow-md grid grid-cols-7 gap-1"
+                    >
+                      <button
+                        v-for="e in EMOJIS"
+                        :key="e"
+                        class="h-8 w-8 flex items-center justify-center rounded hover:bg-accent"
+                        @click.stop="addReaction(p._id, e)"
+                      >
+                        {{ e }}
+                      </button>
+                    </div>
+                  </div>
+                  <div v-if="isSelfProfile" class="relative">
+                    <button
+                      class="h-6 w-6 rounded-full border flex items-center justify-center hover:bg-accent"
+                      aria-label="Post options"
+                      @click.stop="toggleKebabMenu(p._id)"
+                    >
+                      ⋮
+                    </button>
+                    <div
+                      v-if="kebabOpenFor === p._id"
+                      class="absolute right-0 z-10 mt-2 w-40 rounded border bg-white p-2 shadow-md"
+                    >
+                      <button
+                        class="w-full text-left px-2 py-1.5 rounded hover:bg-accent text-sm text-red-600"
+                        @click.stop="deletePostById(p._id)"
+                      >
+                        Delete post
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

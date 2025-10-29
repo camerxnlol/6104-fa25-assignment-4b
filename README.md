@@ -1,35 +1,17 @@
 # Assignment 4B - Vue 3 Frontend
 
-This repository contains a Vue.js v3 frontend application configured to work
-with a backend API on port 8000.
+The application will be available at `http://localhost:5173` after running ```npm run dev```.
 
-## Tech Stack
-
-- **Vue 3** - Progressive JavaScript framework with Composition API
-- **TypeScript** - Type-safe JavaScript
-- **Vite** - Next-generation frontend tooling
-- **Tailwind CSS** - Utility-first CSS framework
-- **Pinia** - State management for Vue
-- **Axios** - Promise-based HTTP client configured for
-  `http://localhost:8000/api`
-
-## Quick Start
-
-### Installation
-
-```bash
-npm install
+To test all features of the app, including recommendations, ranking, and friends, use the preexisting test user account
+```
+Username: testuser
+Password: testuser
 ```
 
-### Development
+## Visual Design Study
+![Color palette](colors.png)
+![Typefaces and font scale](typefaces.png)
 
-Start the development server:
-
-```bash
-npm run dev
-```
-
-The application will be available at `http://localhost:5173`
 
 ## User Journey
 
@@ -65,4 +47,12 @@ with counts. There’s a little + button; he taps it to pop open an emoji picker
 (👍 ❤️ 😂 😮 😢 🔥 🎵). He picks one, and the reaction is added immediately. The
 counts update both in the dialog and in the list.
 
+**Updated Section:**
+
+Bob wonders what songs his friends are posting on the app. Bob navigates to his profile page and clicks friends. There, he can view his pending and outgoing friend requests, as well as users that he is already friends with on the app.
+Bob clicks on Alice's profile and is taken to her profile page. He can see Alice's posts (rankings) and sees that she ranked his favorite song 3.0/10! He reacts with a thumbs down because he disagrees with her ranking. He hopes that Alice will see his ranking.
+
 Watch the user journey video here: [https://youtu.be/pi9Cr42bKsc](https://youtu.be/pi9Cr42bKsc). It is also [here](UserJourney.mov) if the link doesn't work
+
+
+Watch the updated user journey video here: [https://youtu.be/i2wcPzqp2KY](https://youtu.be/i2wcPzqp2KY)
