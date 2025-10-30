@@ -47,8 +47,8 @@ export const friendsApi = {
       user2,
     });
     if ((response.data as any)?.error) throw new Error((response.data as any).error);
-    const arr = response.data as Array<VerifyFriendshipResult>;
-    return Array.isArray(arr) && arr.length ? !!arr[0].isFriend : false;
+    const arr = response.data as Array<VerifyFriendshipResult> | undefined;
+    return Array.isArray(arr) && arr?.[0] ? !!arr[0].isFriend : false;
   },
 
   async getFriends(user: string) {

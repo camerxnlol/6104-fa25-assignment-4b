@@ -31,7 +31,9 @@ export const useRankingStore = defineStore('ranking', () => {
     loading.value = true;
     error.value = null;
     try {
-      rankings.value = await rankingApi.getRankings(userId);
+      const response = await rankingApi.getRankings(userId);
+      // If the API returns { rankedSongs: RankedSong[] }, use .rankedSongs; otherwise, assume array.
+      rankings.value = Array.isArray(response) ? response : response.rankedSongs;
       return rankings.value;
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to fetch rankings';
