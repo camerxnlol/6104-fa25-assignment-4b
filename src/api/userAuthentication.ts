@@ -9,7 +9,7 @@ export const userAuthApi = {
     if ((response.data as any)?.error) {
       throw new Error((response.data as any).error);
     }
-    return response.data as { user: string };
+    return response.data as { user: string; session?: unknown };
   },
 
   async authenticate(username: string, password: string) {
@@ -20,7 +20,7 @@ export const userAuthApi = {
     if ((response.data as any)?.error) {
       throw new Error((response.data as any).error);
     }
-    return response.data as { user: string };
+    return response.data as { user: string; session: unknown };
   },
 
   async delete(user: string) {

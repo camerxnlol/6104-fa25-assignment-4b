@@ -120,9 +120,22 @@ async function loadReactions(postId: string) {
 
 async function addReaction(postId: string, emoji: string) {
   if (!userId.value) return;
-  await reactionApi.add(postId, emoji, userId.value);
-  await loadReactions(postId);
+  // Close any open emoji menus immediately
   emojiPickerOpenFor.value = null;
+  emojiPickerOpenForModal.value = null;
+  // Optimistically update UI
+  const prev = reactionsByPost.value[postId] ? { ...reactionsByPost.value[postId] } : {};
+  const current = reactionsByPost.value[postId] || (reactionsByPost.value[postId] = {});
+  current[emoji] = (current[emoji] ?? 0) + 1;
+  try {
+    await reactionApi.add(postId, emoji, userId.value);
+    // Refresh counts from server to stay authoritative
+    await loadReactions(postId);
+  } catch (err) {
+    // Revert optimistic change on failure
+    reactionsByPost.value[postId] = prev;
+    console.error('Failed to add reaction:', err);
+  }
 }
 
 onMounted(async () => {
@@ -254,7 +267,7 @@ const OneLineSongText = defineComponent<{ username?: string | null; songId: stri
                 </div>
               </div>
             </div>
-            <div class="text-right text-sm">
+            <div class="text-right text-sm -ml-5 -mt-8">
               <div>
                 <span class="text-muted-foreground">Total rankings:</span>
                 <span class="font-semibold ml-1">{{ rankedSongs.length }}</span>

@@ -26,7 +26,15 @@ export const postApi = {
     const response = await apiClient.post('/Post/_getPostsByAuthor', {
       authorId,
     });
-    return response.data as Array<{ post: Post }>;
+    const data = response.data as unknown;
+    if (Array.isArray(data)) {
+      return data as Array<{ post: Post }>;
+    }
+    // Support alternative shape: { posts: Post[] }
+    if (data && typeof data === 'object' && Array.isArray((data as any).posts)) {
+      return ((data as any).posts as Post[]).map((p) => ({ post: p }));
+    }
+    return [];
   },
 
   async getPostById(postId: string) {
