@@ -84,7 +84,7 @@ async function onGenerateRecommendations() {
             >
               <!-- Button glow effect -->
               <div class="absolute inset-0 bg-gradient-to-r from-transparent via-[rgba(251,240,218,0.1)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-              <span class="relative text-lg tracking-wider ghost-underline-thick">
+              <span class="relative text-lg ghost-underline-thick">
                 GENERATE RECOMMENDATION
               </span>
             </button>

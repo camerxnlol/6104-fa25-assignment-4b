@@ -209,6 +209,15 @@
   animation: rise-reveal var(--ani-duration) cubic-bezier(.2,.8,.2,1) both;
   will-change: clip-path, transform, opacity;
 }
+
+/* Softer rise + explicit fade for CTA buttons */
+.button-rise-ease {
+  opacity: 0;
+  animation:
+    rise-reveal calc(var(--ani-duration) * 1.2) cubic-bezier(0.16, 1, 0.3, 1) both,
+    fade-in     calc(var(--ani-duration) * 1.2) cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: clip-path, transform, opacity;
+}
 .btn-fade-late {
   opacity: 0;
   animation: fade-in var(--ani-duration) ease both;
