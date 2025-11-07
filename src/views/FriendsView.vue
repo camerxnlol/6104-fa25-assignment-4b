@@ -52,9 +52,6 @@ async function loadAll() {
       friendsApi.getSentRequests(userId.value),
       friendsApi.getReceivedRequests(userId.value),
     ]);
-    console.log('f →', f);
-    console.log('s →', s);
-    console.log('r →', r);
     friends.value = f;
     outgoing.value = s;
     incoming.value = r;
@@ -199,6 +196,7 @@ async function cancelSentRequest(recipientId: string) {
             Send Friend Request
           </button>
         </div>
+        <p class="text-sm text-muted-foreground pb-2">Click on a friend to view their profile</p>
         <div v-if="!friends.length" class="text-sm text-muted-foreground card-slide-in" :style="{ animationDelay: delayFor('friendItem', 0) }">None</div>
         <div v-else class="space-y-2">
           <AlertDialog v-for="(id, idx) in friends" :key="`f-${id}`" :open="openFriendId === id" @update:open="(v) => openFriendId = v ? id : null">

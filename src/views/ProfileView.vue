@@ -38,6 +38,32 @@ const topRank = ref<{ id: string; score: number } | null>(null);
 const topTitle = ref<string | null>(null);
 const displayUsername = ref<string | null>(null);
 
+// Sorting state
+const sortBy = ref<'time' | 'score'>('time');
+const sortDir = ref<'asc' | 'desc'>('desc'); // default newest first
+
+// Sorted view of posts
+const sortedPosts = computed<Post[]>(() => {
+  const items = [...posts.value];
+  const factor = sortDir.value === 'asc' ? 1 : -1;
+  if (sortBy.value === 'time') {
+    return items.sort((a, b) => (new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()) * factor);
+  }
+  // sort by score parsed from post content; posts without score go to the end
+  const scoreOf = (p: Post): number | null => {
+    const s = parsePostContent(p.content).score;
+    return typeof s === 'number' && Number.isFinite(s) ? s : null;
+  };
+  return items.sort((a, b) => {
+    const sa = scoreOf(a);
+    const sb = scoreOf(b);
+    if (sa == null && sb == null) return 0;
+    if (sa == null) return 1; // put a without score after b
+    if (sb == null) return -1; // put b without score after a
+    return (sa - sb) * factor;
+  });
+});
+
 // Determine which user's profile we're viewing: self or :userId route param
 const activeUserId = computed<string | null>(() => {
   const paramUserId = route.params.userId ? String(route.params.userId) : null;
@@ -218,9 +244,9 @@ function parsePostContent(content: string): { username: string | null; songId: s
 
 function getScoreColorClass(val: number | null): string {
   if (val == null) return '';
-  if (val <= 3.3) return 'text-red-600';
-  if (val <= 6.6) return 'text-yellow-600';
-  return 'text-green-600';
+  if (val <= 3.3) return 'text-red-400';
+  if (val <= 6.6) return 'text-amber-300';
+  return 'text-green-400';
 }
 
 const OneLineSongText = defineComponent<{ username?: string | null; songId: string }>(
@@ -245,7 +271,7 @@ const OneLineSongText = defineComponent<{ username?: string | null; songId: stri
 <template>
   <div class="p-6">
     <div class="max-w-xl mx-auto space-y-3">
-      <Card class="w-full transition bg-transparent shadow-none border-0 !py-0 mb-4">
+      <Card class="w-full transition bg-transparent shadow-none border-0 !py-0 mb-4 z-0">
         <CardHeader class="gap-1 !px-3 pb-2">
           <div class="flex items-center justify-between gap-3">
             <div class="flex items-center gap-3 flex-1">
@@ -254,7 +280,7 @@ const OneLineSongText = defineComponent<{ username?: string | null; songId: stri
                   {{ (displayUsername || username || 'User') + "'s" }}
                 </p>
                 <p class="text-left text-2xl font-semibold pb-3">
-                  RANKINGS
+                  POSTS
                 </p>
                 <div class="flex items-center gap-2">
                   <button
@@ -286,15 +312,43 @@ const OneLineSongText = defineComponent<{ username?: string | null; songId: stri
               </div>
             </div>
           </div>
+          <div class="flex items-center justify-end gap-1 -mt-7 -bl-5 w-max ml-auto">
+            <label class="text-xs text-muted-foreground uppercase">sort</label>
+            <select
+              v-model="sortBy"
+              class="px-1.5 py-0.5 rounded border bg-background text-xs"
+              aria-label="Select sort field"
+            >
+              <option value="time">Chronological</option>
+              <option value="score">Score</option>
+            </select>
+            <button
+              class="h-6 w-6 rounded border flex items-center justify-center hover:bg-accent text-xs"
+              :aria-label="sortDir === 'desc' ? 'Sort descending' : 'Sort ascending'"
+              @click="sortDir = sortDir === 'desc' ? 'asc' : 'desc'"
+            >
+              <span
+                class="inline-block transform transition-transform duration-200 ease-in-out"
+                :class="sortDir === 'asc' ? 'rotate-180' : 'rotate-0'"
+              >↑</span>
+            </button>
+          </div>
         </CardHeader>
       </Card>
     </div>
 
     <div v-if="posts.length" class="max-w-xl mx-auto space-y-3">
-      <div v-for="(p, idx) in posts" :key="p._id" class="relative">
+      <div
+        v-for="(p, idx) in sortedPosts"
+        :key="p._id"
+        :class="[
+          'relative',
+          (emojiPickerOpenFor === p._id || emojiPickerOpenForModal === p._id) ? 'z-[10000]' : 'z-0'
+        ]"
+      >
         <AlertDialog :open="openPostId === p._id" @update:open="(v) => openPostId = v ? p._id : null">
           <AlertDialogTrigger class="block w-full">
-            <Card class="w-full transition hover:shadow-md cursor-pointer !py-3 card-slide-in" :style="{ animationDelay: (idx * 200) + 'ms' }">
+            <Card class="w-full transition hover:shadow-md cursor-pointer !py-3 card-slide-in z-0" :style="{ animationDelay: (idx * 200) + 'ms' }">
               <CardHeader class="gap-1 !px-3">
                 <div class="flex items-center justify-between gap-3">
                   <div class="flex items-center gap-3 flex-1">
@@ -328,11 +382,11 @@ const OneLineSongText = defineComponent<{ username?: string | null; songId: stri
                   </div>
                   <div v-if="parsePostContent(p.content).score != null" class="flex items-center justify-center self-center">
                     <div
-                      class="w-12 h-12 rounded-full bg-white border border-border text-lg font-semibold shadow-sm flex items-center justify-center"
+                      class="w-12 h-12 rounded-full border text-lg font-semibold shadow-sm flex items-center justify-center score-glass"
                       :class="getScoreColorClass(parsePostContent(p.content).score)"
                       :aria-label="`Score: ${parsePostContent(p.content).score}`"
                     >
-                      {{ Number(parsePostContent(p.content).score).toFixed(1) }}
+                      <span class="relative z-10">{{ Number(parsePostContent(p.content).score).toFixed(1) }}</span>
                     </div>
                   </div>
                 </div>
@@ -350,7 +404,7 @@ const OneLineSongText = defineComponent<{ username?: string | null; songId: stri
                     </button>
                     <div
                       v-if="emojiPickerOpenFor === p._id"
-                      class="absolute right-0 z-50 mt-2 w-44 rounded border bg-white p-2 shadow-md grid grid-cols-7 gap-1"
+                      class="absolute right-0 z-[9999] mt-2 w-44 rounded border bg-white p-2 shadow-md grid grid-cols-7 gap-1"
                     >
                       <button
                         v-for="e in EMOJIS"
@@ -413,11 +467,11 @@ const OneLineSongText = defineComponent<{ username?: string | null; songId: stri
                 </div>
                 <div v-if="parsePostContent(p.content).score != null" class="flex items-center justify-center self-center">
                   <div
-                    class="w-12 h-12 rounded-full bg-white border border-border text-lg font-semibold shadow-sm flex items-center justify-center"
+                    class="w-12 h-12 rounded-full border text-lg font-semibold shadow-sm flex items-center justify-center score-glass"
                     :class="getScoreColorClass(parsePostContent(p.content).score)"
                     :aria-label="`Score: ${parsePostContent(p.content).score}`"
                   >
-                    {{ Number(parsePostContent(p.content).score).toFixed(1) }}
+                    <span class="relative z-10">{{ Number(parsePostContent(p.content).score).toFixed(1) }}</span>
                   </div>
                 </div>
               </div>
@@ -436,7 +490,7 @@ const OneLineSongText = defineComponent<{ username?: string | null; songId: stri
                     </button>
                     <div
                       v-if="emojiPickerOpenForModal === p._id"
-                      class="absolute right-0 z-10 mt-2 w-44 rounded border bg-white p-2 shadow-md grid grid-cols-7 gap-1"
+                      class="absolute right-0 z-[9999] mt-2 w-44 rounded border bg-white p-2 shadow-md grid grid-cols-7 gap-1"
                     >
                       <button
                         v-for="e in EMOJIS"
@@ -488,3 +542,37 @@ const OneLineSongText = defineComponent<{ username?: string | null; songId: stri
     <div v-else class="max-w-xl mx-auto text-sm text-muted-foreground">No posts yet.</div>
   </div>
 </template>
+
+<style scoped>
+.score-glass {
+  position: relative;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(2px) saturate(180%);
+  -webkit-backdrop-filter: blur(2px) saturate(180%);
+  border: 0.5px solid rgba(255, 255, 255, 0.8);
+  border-radius: 9999px; /* keep perfect circle */
+  box-shadow:
+    0 8px 32px rgba(31, 38, 135, 0.2),
+    inset 0 4px 20px rgba(255, 255, 255, 0.3);
+  overflow: hidden; /* ensure inner overlay follows circle */
+}
+.score-glass::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: inherit;
+  backdrop-filter: blur(1px);
+  -webkit-backdrop-filter: blur(1px);
+  box-shadow:
+    inset -10px -8px 0px -11px rgba(255, 255, 255, 1),
+    inset 0px -9px 0px -8px rgba(255, 255, 255, 1);
+  opacity: 0.6;
+  filter: blur(1px) drop-shadow(10px 4px 6px black) brightness(115%);
+  z-index: 0; /* keep overlay behind the score text */
+  pointer-events: none;
+}
+</style>

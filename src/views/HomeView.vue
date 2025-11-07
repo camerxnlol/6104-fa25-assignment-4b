@@ -39,6 +39,11 @@ async function onGenerateRecommendations() {
     router.push({ name: 'login' });
     return;
   }
+  // Negative counts are invalid → show error and keep dialog open
+  if (Number.isFinite(count) && count < 0) {
+    generateError.value = "You can't request a negative number of songs.";
+    return;
+  }
   if (!Number.isFinite(count) || count <= 0) {
     // No new generation requested; still allow user to rank existing songs
     router.push({ name: 'rank' });
@@ -73,7 +78,7 @@ async function onGenerateRecommendations() {
       <h1 class="text-3xl font-semibold headline-words font-expanded">
         <span class="word">READY</span>
         <span class="word">TO</span>
-        <span class="word">LISTEN,</span>
+        <span class="word">RANK,</span>
         <span class="word">{{ (username || 'GUEST').toUpperCase() }}?</span>
       </h1>
       <div v-if="isAuthenticated">
@@ -134,7 +139,7 @@ async function onGenerateRecommendations() {
           @click="router.push({ name: 'login' })"
         >
           <div class="absolute inset-0 bg-gradient-to-r from-transparent via-[rgba(251,240,218,0.1)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-          <span class="relative text-lg md:text-xl tracking-wider font-medium ghost-underline-thick">
+          <span class="relative text-lg font-medium ghost-underline-thick">
             LOG IN TO GENERATE RECOMMENDATIONS
           </span>
         </button>

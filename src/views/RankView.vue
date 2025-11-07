@@ -67,15 +67,13 @@ onMounted(async () => {
     let past = [];
     try {
       past = await songRecommenderApi.getPastRecommendations(userId.value);
-      console.log('songRecommenderApi.getPastRecommendations →', past);
       const rankResponse = await rankingApi.getRankings(userId.value);
       pastRecommendations.value = past;
-      console.log('pastRecommendations (assigned) →', pastRecommendations.value);
       // rankResponse should have rankedSongs: {songId: string, score: number}[]
       rankedList.value = rankResponse.rankedSongs as RankedSong[];
       rankedSongs.value = rankResponse.rankedSongs.map((r: {songId: string, score: number}) => r.songId);
-      console.log('rankedSongs', rankedSongs.value);
       unrankedPastSongs.value = past.filter((song) => !rankedSongs.value.includes(song));
+      console.log('unrankedPastSongs', unrankedPastSongs.value);
     // Fetch MusicBrainz metadata per unranked song using lookupSongMetadata
     for (const id of unrankedPastSongs.value) {
       try {
@@ -125,10 +123,9 @@ async function postActiveSongUpdate() {
       songMeta.value[songId] = null;
     }
   }
-  const title = songMeta.value[songId]?.title || songId;
   const info = rankInfoById.value[songId];
   const normalized = info ? (info.score / 10).toFixed(1) : 'N/A';
-  const content = `${username.value ?? 'user'} ranked ${title} ${normalized}`;
+  const content = `${username.value ?? 'user'} ranked ${songId} ${normalized}`;
   await postApi.create(userId.value, content, new Date().toISOString());
 }
 
@@ -230,7 +227,8 @@ async function selectPreferred(preferA: boolean) {
 
 <template>
   <div class="p-6 max-w-3xl mx-auto">
-    <h1 class="text-2xl font-semibold mb-4 text-center fade-in-400">OUTSTANDING RECOMMENDATIONS</h1>
+    <h1 class="text-2xl font-semibold mb-4 text-left fade-in-400">OUTSTANDING RECOMMENDATIONS</h1>
+    <p class="text-sm text-muted-foreground mb-4 -mt-2">Select a song to rank it against other songs</p>
     <div v-if="!unrankedPastSongs.length" class="text-sm text-muted-foreground">
     </div>
     <div v-else class="flex flex-col gap-4">
