@@ -305,11 +305,6 @@ const OneLineSongText = defineComponent<{ username?: string | null; songId: stri
                 <span class="text-muted-foreground">Total rankings:</span>
                 <span class="font-semibold ml-1">{{ rankedSongs.length }}</span>
               </div>
-              <div class="mt-1">
-                <span class="text-muted-foreground">Highest rated:</span>
-                <span v-if="topRank && topTitle" class="font-semibold ml-1">{{ topTitle }} - {{ topRank.score.toFixed(1) }}</span>
-                <span v-else class="text-muted-foreground ml-1">N/A</span>
-              </div>
             </div>
           </div>
           <div class="flex items-center justify-end gap-1 -mt-7 -bl-5 w-max ml-auto">
