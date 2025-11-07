@@ -245,7 +245,7 @@ const OneLineSongText = defineComponent<{ username?: string | null; songId: stri
 <template>
   <div class="p-6">
     <div class="max-w-xl mx-auto space-y-3">
-      <Card class="w-full transition shadow-none border-0 !py-0 mb-4">
+      <Card class="w-full transition bg-transparent shadow-none border-0 !py-0 mb-4">
         <CardHeader class="gap-1 !px-3 pb-2">
           <div class="flex items-center justify-between gap-3">
             <div class="flex items-center gap-3 flex-1">

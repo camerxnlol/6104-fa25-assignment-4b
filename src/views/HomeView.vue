@@ -68,8 +68,8 @@ async function onGenerateRecommendations() {
 </script>
 
 <template>
-  <div class="min-h-screen -mt-16 flex items-center justify-center">
-    <div class="text-center space-y-4 uppercase text-[var(--foreground)]">
+  <div class="min-h-screen w-full relative overflow-hidden -mt-16 flex items-center justify-center">
+    <div class="relative z-10 text-center space-y-4 uppercase text-[var(--foreground)]">
       <h1 class="text-3xl font-semibold headline-words font-expanded">
         <span class="word">READY</span>
         <span class="word">TO</span>
@@ -80,9 +80,13 @@ async function onGenerateRecommendations() {
         <AlertDialog :open="recommendDialogOpen" @update:open="(v) => (recommendDialogOpen = v)">
           <AlertDialogTrigger>
             <button
-              class="px-0 py-2 bg-transparent text-[var(--foreground)] focus:outline-none focus:ring-0 rounded-none shadow-none ghost-underline btn-fade-late"
+              class="group relative px-8 py-4 bg-transparent text-[var(--foreground)] focus:outline-none rounded-lg overflow-hidden transition-all duration-300 hover:scale-105 headline-rise-reveal button-rise-ease"
             >
-              GENERATE RECOMMENDATION
+              <!-- Button glow effect -->
+              <div class="absolute inset-0 bg-gradient-to-r from-transparent via-[rgba(251,240,218,0.1)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+              <span class="relative text-lg tracking-wider ghost-underline-thick">
+                GENERATE RECOMMENDATION
+              </span>
             </button>
           </AlertDialogTrigger>
           <AlertDialogContent class="uppercase">
@@ -124,12 +128,15 @@ async function onGenerateRecommendations() {
           </AlertDialogContent>
         </AlertDialog>
       </div>
-      <div v-else>
+      <div v-else class="pt-4">
         <button
-          class="px-0 py-2 bg-transparent text-[var(--foreground)] focus:outline-none focus:ring-0 rounded-none shadow-none ghost-underline btn-fade-late"
+          class="group relative px-8 py-4 bg-transparent text-[var(--foreground)] focus:outline-none rounded-lg overflow-hidden transition-all duration-300 hover:scale-105 headline-rise-reveal button-rise-ease"
           @click="router.push({ name: 'login' })"
         >
-          LOG IN TO GENERATE RECOMMENDATIONS
+          <div class="absolute inset-0 bg-gradient-to-r from-transparent via-[rgba(251,240,218,0.1)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+          <span class="relative text-lg md:text-xl tracking-wider font-medium ghost-underline-thick">
+            LOG IN TO GENERATE RECOMMENDATIONS
+          </span>
         </button>
       </div>
     </div>
@@ -137,3 +144,89 @@ async function onGenerateRecommendations() {
 </template>
 
 
+<style scoped>
+/*  Animated gradient orbs for background effect */
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.15;
+  animation: float 20s infinite ease-in-out;
+}
+
+.orb-1 {
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(251, 240, 218, 0.3) 0%, transparent 70%);
+  top: -10%;
+  left: -10%;
+  animation-delay: 0s;
+  animation-duration: 25s;
+}
+
+.orb-2 {
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(255, 200, 150, 0.25) 0%, transparent 70%);
+  bottom: -5%;
+  right: -5%;
+  animation-delay: -8s;
+  animation-duration: 22s;
+}
+
+.orb-3 {
+  width: 350px;
+  height: 350px;
+  background: radial-gradient(circle, rgba(251, 240, 218, 0.2) 0%, transparent 70%);
+  top: 40%;
+  right: 10%;
+  animation-delay: -15s;
+  animation-duration: 28s;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(30px, -30px) scale(1.1);
+  }
+  50% {
+    transform: translate(-20px, 20px) scale(0.95);
+  }
+  75% {
+    transform: translate(20px, 30px) scale(1.05);
+  }
+}
+
+/*  Enhanced underline effect for buttons */
+.ghost-underline-thick {
+  position: relative;
+  display: inline-block;
+  text-decoration: none;
+  line-height: 1;
+  vertical-align: baseline;
+}
+
+.ghost-underline-thick::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  height: 2px;
+  width: 100%;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ghost-underline-thick:hover::after {
+  transform: scaleX(1);
+}
+
+/*  Added delay variant for staggered animation */
+.word.delay-1 {
+  animation-delay: calc(var(--ani-duration) * 0.24) !important;
+}
+</style>
