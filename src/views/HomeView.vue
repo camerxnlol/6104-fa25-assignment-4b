@@ -6,7 +6,6 @@ import { songRecommenderApi } from '@/api';
 import router from '@/router';
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -28,23 +27,42 @@ const { username, userId, isAuthenticated } = storeToRefs(authStore);
 
 const songCount = ref<number | null>(null);
 const recommendedSongs = ref<string[]>([]);
+const generateError = ref<string | null>(null);
+const recommendDialogOpen = ref(false);
 
 async function onGenerateRecommendations() {
   recommendedSongs.value = [];
+  generateError.value = null;
   const count = Number(songCount.value ?? 0);
   const uid = userId.value;
   if (!isAuthenticated.value || !uid) {
     router.push({ name: 'login' });
     return;
   }
-  if (!Number.isFinite(count) || count <= 0) return;
+  if (!Number.isFinite(count) || count <= 0) {
+    // No new generation requested; still allow user to rank existing songs
+    router.push({ name: 'rank' });
+    return;
+  }
   try {
     const resp = await songRecommenderApi.generateRecommendation(uid, count);
-    const list = resp.recommendedSongs ?? [];
+    // If API returns an error in a 200 response shape, surface it
+    if (resp && typeof resp === 'object' && (resp as any).error) {
+      generateError.value = String((resp as any).error);
+      return;
+    }
+    const list = Array.isArray(resp?.recommendedSongs) ? resp.recommendedSongs : [];
     recommendedSongs.value = list;
     router.push({ name: 'rank' });
+    recommendDialogOpen.value = false;
   } catch (e) {
-    // silently ignore
+    let message = 'Failed to generate recommendations';
+    if (e && typeof e === 'object') {
+      const anyErr = e as any;
+      message = anyErr?.response?.data?.error || anyErr?.message || message;
+    }
+    generateError.value = String(message);
+    // stay on page on error
   }
 }
 </script>
@@ -59,7 +77,7 @@ async function onGenerateRecommendations() {
         <span class="word">{{ (username || 'GUEST').toUpperCase() }}?</span>
       </h1>
       <div v-if="isAuthenticated">
-        <AlertDialog>
+        <AlertDialog :open="recommendDialogOpen" @update:open="(v) => (recommendDialogOpen = v)">
           <AlertDialogTrigger>
             <button
               class="px-0 py-2 bg-transparent text-[var(--foreground)] focus:outline-none focus:ring-0 rounded-none shadow-none ghost-underline btn-fade-late"
@@ -84,6 +102,10 @@ async function onGenerateRecommendations() {
                 </NumberFieldContent>
               </NumberField>
 
+              <div v-if="generateError" class="text-red-600 text-sm text-center px-40 pt-2 -mb-6">
+                {{ generateError }}
+              </div>
+
               <div v-if="recommendedSongs.length" class="text-left">
                 <ul class="list-disc pl-5 space-y-1">
                   <li v-for="song in recommendedSongs" :key="song">{{ song }}</li>
@@ -91,12 +113,13 @@ async function onGenerateRecommendations() {
               </div>
             </div>
             <div class="mt-3 flex justify-center">
-              <AlertDialogAction
-                class="bg-transparent text-[var(--foreground)] pb-0 px-0 ghost-underline btn-fade-late hover:bg-transparent focus:bg-transparent active:bg-transparent"
+              <button
+                type="button"
+                class="bg-transparent text-[var(--foreground)] pb-1 px-0 ghost-underline btn-fade-late hover:bg-transparent focus:bg-transparent active:bg-transparent"
                 @click="onGenerateRecommendations"
               >
                 GO!
-              </AlertDialogAction>
+              </button>
             </div>
           </AlertDialogContent>
         </AlertDialog>

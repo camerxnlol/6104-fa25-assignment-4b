@@ -67,8 +67,10 @@ onMounted(async () => {
     let past = [];
     try {
       past = await songRecommenderApi.getPastRecommendations(userId.value);
+      console.log('songRecommenderApi.getPastRecommendations →', past);
       const rankResponse = await rankingApi.getRankings(userId.value);
       pastRecommendations.value = past;
+      console.log('pastRecommendations (assigned) →', pastRecommendations.value);
       // rankResponse should have rankedSongs: {songId: string, score: number}[]
       rankedList.value = rankResponse.rankedSongs as RankedSong[];
       rankedSongs.value = rankResponse.rankedSongs.map((r: {songId: string, score: number}) => r.songId);
@@ -112,24 +114,47 @@ watch([currentCompetitorId, openSongId], async ([id, open]) => {
   }
 });
 
-async function finalizeComparison(preferredId: string, otherId?: string) {
+async function postActiveSongUpdate() {
   if (!userId.value || !activeSongId.value) return;
-  const songA = activeSongId.value;
-  const songB = otherId ?? songA;
-  try {
-    await rankingApi.addComparison(userId.value, songA, songB, preferredId);
+  const songId = activeSongId.value;
+  // Ensure metadata is available and up to date for title
+  if (songMeta.value[songId] === undefined) {
     try {
-      const ranks = await rankingApi.getRankings(userId.value);
-      const list: RankedSong[] = Array.isArray((ranks as any)?.rankedSongs)
-        ? (ranks as any).rankedSongs
-        : (Array.isArray(ranks) ? (ranks as RankedSong[]) : []);
-      rankedList.value = list;
-      rankedSongs.value = list.map((r) => r.songId);
-      const entry = list.find((r) => r.songId === songA);
-      const normalized = entry ? (entry.score / 10).toFixed(1) : 'N/A';
-      const content = `${username.value ?? 'user'} ranked ${songA} ${normalized}`;
-      await postApi.create(userId.value, content, new Date().toISOString());
-    } catch (_) {}
+      songMeta.value[songId] = await musicMetadataApi.lookupSongMetadata(songId);
+    } catch (_) {
+      songMeta.value[songId] = null;
+    }
+  }
+  const title = songMeta.value[songId]?.title || songId;
+  const info = rankInfoById.value[songId];
+  const normalized = info ? (info.score / 10).toFixed(1) : 'N/A';
+  const content = `${username.value ?? 'user'} ranked ${title} ${normalized}`;
+  await postApi.create(userId.value, content, new Date().toISOString());
+}
+
+async function finalizeComparison(reason: 'outOfCandidates' | 'pickedCompetitor') {
+  if (!userId.value || !activeSongId.value) return;
+  try {
+    // Only refetch after the final comparison
+    const ranks = await rankingApi.getRankings(userId.value);
+    const list: RankedSong[] = Array.isArray((ranks as any)?.rankedSongs)
+      ? (ranks as any).rankedSongs
+      : (Array.isArray(ranks) ? (ranks as RankedSong[]) : []);
+    // If this is the very first ranked song, default its score to 5.0 (50 normalized base)
+    if (list.length === 1) {
+      const only = list[0]!;
+      list[0] = { songId: only.songId, score: 50 } as RankedSong;
+    }
+    rankedList.value = list;
+    rankedSongs.value = list.map((r) => r.songId);
+    // Refresh available-to-rank songs so the ranked one disappears when dialog closes
+    unrankedPastSongs.value = pastRecommendations.value.filter((id) => !rankedSongs.value.includes(id));
+    // Post only when we ran out of possible comparisons in current direction
+    if (reason === 'outOfCandidates') {
+      try {
+        await postActiveSongUpdate();
+      } catch (_) {}
+    }
   } catch (err) {
     console.error('Error finalizing comparison:', err);
   } finally {
@@ -143,7 +168,7 @@ function advanceOrFinalize(preferA: boolean) {
   const len = candidates.value.length;
   if (len === 0) {
     // No competitors at all
-    finalizeComparison(activeSongId.value!);
+    finalizeComparison('outOfCandidates');
     return;
   }
   // Set direction on first choice
@@ -155,11 +180,11 @@ function advanceOrFinalize(preferA: boolean) {
       competitorIndex.value += 1;
       if (competitorIndex.value >= len) {
         // out of candidates → finalize preferring A vs last
-        finalizeComparison(activeSongId.value!, candidates.value[len - 1] as string);
+        finalizeComparison('outOfCandidates');
       }
     } else {
       // User picked B → finalize with current competitor
-      finalizeComparison(candidates.value[competitorIndex.value] as string, activeSongId.value!);
+      finalizeComparison('pickedCompetitor');
     }
   } else {
     // direction === 'down' → move to worse B (lower index)
@@ -167,11 +192,11 @@ function advanceOrFinalize(preferA: boolean) {
       competitorIndex.value -= 1;
       if (competitorIndex.value < 0) {
         // out of candidates → finalize preferring current B (the first one we had)
-        finalizeComparison(candidates.value[0] as string, activeSongId.value!);
+        finalizeComparison('outOfCandidates');
       }
     } else {
       // User picked A → finalize with current competitor
-      finalizeComparison(activeSongId.value!, candidates.value[Math.max(0, competitorIndex.value)] as string);
+      finalizeComparison('pickedCompetitor');
     }
   }
 }
@@ -182,6 +207,22 @@ async function selectPreferred(preferA: boolean) {
   if (competitorIndex.value < 0) competitorIndex.value = 0;
   if (competitorIndex.value >= candidates.value.length && candidates.value.length > 0) {
     competitorIndex.value = candidates.value.length - 1;
+  }
+  // Always record the user's comparison click (intermediate steps included)
+  const songA = activeSongId.value;
+  const songB = currentCompetitorId.value;
+  const preferredId = preferA ? songA : (songB ?? songA);
+  try {
+    await rankingApi.addComparison(userId.value, songA, songB, preferredId);
+  } catch (err) {
+    console.error('Error adding comparison:', err);
+  }
+  // If the user changed direction (relative to the initial direction), post an update
+  const newDir: 'up' | 'down' = preferA ? 'up' : 'down';
+  if (direction.value !== null && direction.value !== newDir) {
+    try {
+      await postActiveSongUpdate();
+    } catch (_) {}
   }
   advanceOrFinalize(preferA);
 }

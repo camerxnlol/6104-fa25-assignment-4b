@@ -25,7 +25,10 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
-  const isAuthed = auth.isAuthenticated
+  // Pinia setup store returns refs; guard runs outside components, so read .value safely
+  const isAuthed = typeof (auth as any)?.isAuthenticated === 'boolean'
+    ? (auth as any).isAuthenticated
+    : Boolean((auth as any)?.isAuthenticated?.value)
   if (to.name === 'login' && isAuthed) {
     return { name: 'home' }
   }
@@ -36,7 +39,9 @@ router.beforeEach(async (to) => {
     return { name: 'home' }
   }
   if (to.name === 'profile-user') {
-    const selfId = auth.userId
+    const selfId = typeof (auth as any)?.userId === 'string'
+      ? (auth as any).userId
+      : String((auth as any)?.userId?.value || '')
     const targetId = String(to.params.userId || '')
     if (!targetId) return { name: 'profile' }
     if (selfId && targetId === selfId) return true

@@ -41,14 +41,14 @@ export const songRecommenderApi = {
       userId,
     });
     // API returns a raw array of strings per spec
-    return response.data as string[];
+    return response.data.pastRecommendations as string[];
   },
 
   async getNotYetRecommendedSongs(userId: string) {
     const response = await apiClient.post('/SongRecommender/getNotYetRecommendedSongs', {
       userId,
     });
-    return response.data as { notYetRecommendedSongs: string[] };
+    return response.data.notYetRecommendedSongs as string[];
   },
 };
 

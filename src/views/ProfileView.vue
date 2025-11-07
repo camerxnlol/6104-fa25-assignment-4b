@@ -56,17 +56,24 @@ async function loadPosts() {
 }
 
 async function loadRankings() {
-  if (!activeUserId.value) return;
+  const id = activeUserId.value;
+  if (!id) return;
   try {
-    const resp = await rankingApi.getRankings(activeUserId.value);
-    rankedSongs.value = resp.rankedSongs || [];
+    console.log('loadRankings request →', { author: id });
+    const resp = await rankingApi.getRankings(id);
+    console.log('loadRankings response →', resp);
+    const list = Array.isArray((resp as any)?.rankedSongs) ? (resp as any).rankedSongs : [];
+    console.log('loadRankings normalized length →', list.length);
+    rankedSongs.value = list;
     if (rankedSongs.value.length) {
       const sorted = [...rankedSongs.value].sort((a, b) => b.score - a.score);
       const best = sorted[0];
       if (best) {
+        console.log('loadRankings best →', best);
         topRank.value = { id: best.songId, score: Number((best.score / 10).toFixed(1)) };
         try {
           const meta = await musicMetadataApi.lookupSongMetadata(best.songId);
+          console.log('loadRankings best meta →', { songId: best.songId, meta });
           topTitle.value = meta?.title || best.songId;
         } catch (_) {
           topTitle.value = best.songId;

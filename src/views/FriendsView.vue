@@ -52,6 +52,9 @@ async function loadAll() {
       friendsApi.getSentRequests(userId.value),
       friendsApi.getReceivedRequests(userId.value),
     ]);
+    console.log('f →', f);
+    console.log('s →', s);
+    console.log('r →', r);
     friends.value = f;
     outgoing.value = s;
     incoming.value = r;

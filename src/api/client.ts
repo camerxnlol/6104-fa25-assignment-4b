@@ -24,6 +24,18 @@ const EXCLUDED_SESSION_PATHS = [
 
 apiClient.interceptors.request.use((config) => {
   try {
+    // Allow per-request opt-out
+    const noSessionFlag =
+      (config.headers as any)?.['X-No-Session'] === 'true' ||
+      (config.headers as any)?.['x-no-session'] === 'true';
+    if (noSessionFlag) {
+      // Clean the header so it isn't sent to the server
+      if (config.headers) {
+        delete (config.headers as any)['X-No-Session'];
+        delete (config.headers as any)['x-no-session'];
+      }
+      return config;
+    }
     const url = config.url || '';
     const method = (config.method || 'get').toLowerCase();
     const isExcluded = EXCLUDED_SESSION_PATHS.some((p) => url.includes(p));
